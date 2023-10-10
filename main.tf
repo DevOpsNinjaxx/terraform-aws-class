@@ -1,3 +1,25 @@
+terraform {
+  ## Assumes s3 bucket and dynamo DB table already set up
+  ## See /code/03-basics/aws-backend
+  backend "s3" {
+    bucket         = "devops-directive-tf-state-aminundakun"
+    key            = "03-basics/web-app/terraform.tfstate"
+    region         = "us-east-2"
+    dynamodb_table = "terraform-state-locking"
+    encrypt        = true
+  }
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 3.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = "us-east-2"
+}
 # Create a VPC
 resource "aws_vpc" "prod-vpc" {
   cidr_block = "10.0.0.0/16"
@@ -53,15 +75,13 @@ resource "aws_instance" "web_server" {
   associate_public_ip_address = true
   key_name        = "amzonLinux2Key"
   security_groups = [aws_security_group.web-server-SG.id]
-  user_data       = <<EOF
-                    #!/bin/bash
-                    sudo apt update -y
-                    sudo apt install apache2 -y
-                    systemctl start apache2
-                    systemctl enable apache2
-                    cd /var/www/html
-                    echo "<h1>Company Website</h1>" > index.html
-                  EOF
+  user_data = <<-EOF
+                 #!/bin/bash
+                 sudo apt update -y
+                 sudo apt install apache2 -y
+                 sudo systemctl start apache2
+                 sudo bash -c 'echo "<h1>Company Website</h1>" > /var/www/html/index.html'
+                 EOF
 
   tags = {
     Name = "terraform-web-server"
